@@ -5,11 +5,6 @@ set -euo pipefail
 TARGET=${TARGET:-xtensa-softmmu}
 VERSION=${VERSION:-dev}
 
-# Force enable libiconv. It's a workaround for a transitive dependency of libintl. Disabling with configure options doesn't work. Enable it for consistent.
-# (only for MinGW static build)
-
-sed -z -i "s/qemu_ldflags = \[\]/qemu_ldflags = \['-liconv','-Wl,--allow-multiple-definition'\]/g" -- meson.build
-
 echo DBG
 ./configure --help
 
@@ -17,8 +12,8 @@ echo DBG
     --bindir=bin \
     --datadir=share/qemu \
     --enable-gcrypt \
-    --enable-iconv \
     --enable-sdl \
+    --enable-pixman \
     --enable-slirp \
     --enable-stack-protector \
     --extra-cflags=-Werror \
@@ -29,3 +24,9 @@ echo DBG
     --with-suffix="" \
     --without-default-features \
 || { cat meson-logs/meson-log.txt && false; }
+
+
+# This fixes the issue that for some reason, meson is not able to determine correct
+# paths for libiconv and libintl libraries from 'pkg-config --libs --static libgcrypt'.
+MSYS_BASE=$(cygpath -w / | sed 's/\\/\//g')
+sed -i "s|/mingw64/lib/libintl.dll.a|${MSYS_BASE}/mingw64/lib/libintl.dll.a|g; s|/mingw64/lib/libiconv.dll.a|${MSYS_BASE}/mingw64/lib/libiconv.dll.a|g" build/build.ninja
