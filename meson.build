@@ -300,11 +300,7 @@ qemu_common_flags = [
   '-D_GNU_SOURCE', '-D_FILE_OFFSET_BITS=64', '-D_LARGEFILE_SOURCE',
   '-fno-strict-aliasing', '-fno-common', '-fwrapv' ]
 qemu_cflags = []
-qemu_ldflags = []
-
-if host_os == 'windows'
-  qemu_ldflags += ['-liconv', '-Wl,--allow-multiple-definition']
-endif
+qemu_ldflags = ['-liconv','-Wl,--allow-multiple-definition']
 
 if host_os == 'darwin'
   # Disable attempts to use ObjectiveC features in os/object.h since they
