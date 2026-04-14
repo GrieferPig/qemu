@@ -6,7 +6,7 @@ TARGET=${TARGET:-xtensa-softmmu}
 VERSION=${VERSION:-dev}
 
 echo DBG
-./configure --help
+bash ./configure --help
 
 # Building with -Werror only on Linux as that breaks some features detection in meson on macOS.
 # Defining --bindir, --datadir, etc - to have the same directory tree on Linux and Windows
@@ -14,7 +14,7 @@ echo DBG
 #
 #   MinGW build ref: https://github.com/msys2/MINGW-packages/blob/master/mingw-w64-qemu/PKGBUILD
 
-./configure \
+bash ./configure \
     --bindir=bin \
     --datadir=share/qemu \
     --enable-gcrypt \

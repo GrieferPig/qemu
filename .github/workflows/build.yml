@@ -102,10 +102,23 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Reset generated build state
+        run: |
+          rm -rf build install dist
+
+      - name: Normalize non-Windows shell entrypoints
+        if : ${{ matrix.platform != 'x86_64-w64-mingw32' }}
+        run: |
+          find .github/workflows/scripts scripts -type f -exec sed -i 's/\r$//' {} +
+          find .github/workflows/scripts scripts -type f -exec chmod +x {} +
+          sed -i 's/\r$//' ./configure
+          chmod +x ./configure
+
       - name: Install prerequisites (${{ matrix.target }} @ ${{ matrix.platform }})
         if : ${{ matrix.platform != 'x86_64-w64-mingw32' }}
         run: |
-          ${{ matrix.run_prerequisites }}
+          sed -i 's/\r$//' ${{ matrix.run_prerequisites }}
+          bash ${{ matrix.run_prerequisites }}
 
       - name: Install MSYS2 prerequisites (${{ matrix.target }} @ ${{ matrix.platform }})
         if : ${{ matrix.platform == 'x86_64-w64-mingw32' }}
@@ -121,10 +134,13 @@ jobs:
             mingw-w64-x86_64-libgcrypt
             mingw-w64-x86_64-libiconv
             mingw-w64-x86_64-libslirp
+            mingw-w64-x86_64-meson
+            mingw-w64-x86_64-miniaudio
             mingw-w64-x86_64-ninja
             mingw-w64-x86_64-pixman
             mingw-w64-x86_64-pkg-config
             mingw-w64-x86_64-python
+            mingw-w64-x86_64-python-distlib
             mingw-w64-x86_64-SDL2
 
       - name: Configure (${{ matrix.target }} @ ${{ matrix.platform }})
@@ -132,7 +148,12 @@ jobs:
           VERSION: ${{ needs.Vars.outputs.VERSION }}
           TARGET: ${{ matrix.target }}
         run: |
-          ${{ matrix.run_configure }}
+          if [[ "${{ matrix.platform }}" == 'x86_64-w64-mingw32' ]]; then
+            ${{ matrix.run_configure }}
+          else
+            sed -i 's/\r$//' ${{ matrix.run_configure }}
+            bash ${{ matrix.run_configure }}
+          fi
 
       - name: Build (${{ matrix.target }} @ ${{ matrix.platform }})
         run: |
@@ -154,13 +175,14 @@ jobs:
           echo "dist/dist-${PROJECT_NAME}-${TARGET}-${PLATFORM}/${ARCHIVE_NAME}" > ${DIST_DIR}/file_${PLATFORM}_${TARGET}
 
       - name: Save build/build.ninja for failed builds
-        if: ${{ failure() }}
+        if: ${{ failure() && env.ACTIONS_RUNTIME_TOKEN != '' }}
         uses: actions/upload-artifact@v4
         with:
           name: build-ninja-${{ matrix.target }}-${{ matrix.platform }}
           path: build/build.ninja
 
       - name: Dist filelist (dbg) (${{ matrix.target }} @ ${{ matrix.platform }})
+        if: ${{ env.ACTIONS_RUNTIME_TOKEN != '' }}
         uses: actions/upload-artifact@v4
         with:
           name: dist-filelist-${{ matrix.target }}-${{ matrix.platform }}
@@ -168,6 +190,7 @@ jobs:
             dist/dist-filelist-*
 
       - name: Dist artifacts (${{ matrix.target }} @ ${{ matrix.platform }})
+        if: ${{ env.ACTIONS_RUNTIME_TOKEN != '' }}
         uses: actions/upload-artifact@v4
         with:
           name: dist-qemu-${{ matrix.target }}-${{ matrix.platform }}
