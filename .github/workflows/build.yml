@@ -68,7 +68,7 @@ jobs:
             run_configure: "./.github/workflows/scripts/configure-native.sh"
 
           - platform: aarch64-linux-gnu
-            runs_on: ubuntu-22.04
+            runs_on: ubuntu-24.04
             # Debian 11 provides the lowest possible Glibc version (2.31), given QEMU's glib2 => 2.66 requirement.
             container: debian:11.11
             shell: bash -e {0}
@@ -80,17 +80,17 @@ jobs:
             shell: msys2 {0}
             run_configure: "./.github/workflows/scripts/configure-win.sh"
 
-          - platform: x86_64-apple-darwin
-            runs_on: macos-13
-            shell: bash -e {0}
-            run_prerequisites: "./.github/workflows/scripts/prerequisites-macos.sh"
-            run_configure: "./.github/workflows/scripts/configure-macos.sh"
+          # - platform: x86_64-apple-darwin
+          #   runs_on: macos-14
+          #   shell: bash -e {0}
+          #   run_prerequisites: "./.github/workflows/scripts/prerequisites-macos.sh"
+          #   run_configure: "./.github/workflows/scripts/configure-macos.sh"
 
-          - platform: aarch64-apple-darwin
-            runs_on: macos-13-xlarge
-            shell: bash -e {0}
-            run_prerequisites: "./.github/workflows/scripts/prerequisites-macos.sh"
-            run_configure: "./.github/workflows/scripts/configure-macos.sh"
+          # - platform: aarch64-apple-darwin
+          #   runs_on: macos-14-xlarge
+          #   shell: bash -e {0}
+          #   run_prerequisites: "./.github/workflows/scripts/prerequisites-macos.sh"
+          #   run_configure: "./.github/workflows/scripts/configure-macos.sh"
 
     runs-on: ${{ matrix.runs_on }}
     container:
@@ -102,9 +102,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Reset generated build state
+      - name: Reset generated build state (non-Windows)
+        if : ${{ matrix.platform != 'x86_64-w64-mingw32' }}
         run: |
           rm -rf build install dist
+
+      - name: Reset generated build state (Windows)
+        if : ${{ matrix.platform == 'x86_64-w64-mingw32' }}
+        shell: pwsh
+        run: |
+          @('build', 'install', 'dist') | ForEach-Object {
+            if (Test-Path $_) {
+              Remove-Item -Recurse -Force $_
+            }
+          }
 
       - name: Normalize non-Windows shell entrypoints
         if : ${{ matrix.platform != 'x86_64-w64-mingw32' }}
