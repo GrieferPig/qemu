@@ -4,9 +4,7 @@ set -euo pipefail
 
 TARGET=${TARGET:-xtensa-softmmu}
 VERSION=${VERSION:-dev}
-
-echo DBG
-./configure --help
+export PKG_CONFIG=${PKG_CONFIG:-pkgconf}
 
 ./configure \
     --bindir=bin \
@@ -14,9 +12,9 @@ echo DBG
     --enable-gcrypt \
     --enable-sdl \
     --enable-pixman \
-    --disable-slirp \
+    --enable-slirp \
     --enable-stack-protector \
-    --extra-cflags=-Wno-error \
+    --extra-cflags='-Wno-error -DLIBSLIRP_STATIC' \
     --prefix=${PWD}/install/qemu \
     --static \
     --target-list=${TARGET} \
