@@ -21,9 +21,8 @@
 #include "hw/ssi/esp32_spi.h"
 #include "hw/misc/esp32_flash_enc.h"
 
-
-
-enum {
+enum
+{
     CMD_RES = 0xab,
     CMD_DP = 0xb9,
     CMD_CE = 0x60,
@@ -38,16 +37,16 @@ enum {
     CMD_READ = 0x03,
 };
 
+#define ESP32_SPI_REG_SIZE 0x1000
 
-#define ESP32_SPI_REG_SIZE    0x1000
-
-static void esp32_spi_do_command(Esp32SpiState* state, uint32_t cmd_reg);
+static void esp32_spi_do_command(Esp32SpiState *state, uint32_t cmd_reg);
 
 static uint64_t esp32_spi_read(void *opaque, hwaddr addr, unsigned int size)
 {
     Esp32SpiState *s = ESP32_SPI(opaque);
     uint64_t r = 0;
-    switch (addr) {
+    switch (addr)
+    {
     case A_SPI_ADDR:
         r = s->addr_reg;
         break;
@@ -95,10 +94,11 @@ static uint64_t esp32_spi_read(void *opaque, hwaddr addr, unsigned int size)
 }
 
 static void esp32_spi_write(void *opaque, hwaddr addr,
-                       uint64_t value, unsigned int size)
+                            uint64_t value, unsigned int size)
 {
     Esp32SpiState *s = ESP32_SPI(opaque);
-    switch (addr) {
+    switch (addr)
+    {
     case A_SPI_W0 ... A_SPI_W0 + (ESP32_SPI_BUF_WORDS - 1) * sizeof(uint32_t):
         s->data_reg[(addr - A_SPI_W0) / sizeof(uint32_t)] = value;
         break;
@@ -141,27 +141,31 @@ static void esp32_spi_write(void *opaque, hwaddr addr,
     }
 }
 
-typedef struct Esp32SpiTransaction {
+typedef struct Esp32SpiTransaction
+{
     int cmd_bytes;
     uint32_t cmd;
     int addr_bytes;
     uint32_t addr;
     int data_tx_bytes;
     int data_rx_bytes;
-    uint32_t* data;
+    uint32_t *data;
 } Esp32SpiTransaction;
 
 static void esp32_spi_txrx_buffer(Esp32SpiState *s, void *buf, int tx_bytes, int rx_bytes)
 {
     int bytes = MAX(tx_bytes, rx_bytes);
-    uint8_t *c_buf = (uint8_t*) buf;
-    for (int i = 0; i < bytes; ++i) {
+    uint8_t *c_buf = (uint8_t *)buf;
+    for (int i = 0; i < bytes; ++i)
+    {
         uint8_t byte = 0;
-        if (byte < tx_bytes) {
+        if (byte < tx_bytes)
+        {
             memcpy(&byte, c_buf + i, 1);
         }
         uint32_t res = ssi_transfer(s->spi, byte);
-        if (byte < rx_bytes) {
+        if (byte < rx_bytes)
+        {
             memcpy(c_buf + i, &res, 1);
         }
     }
@@ -169,7 +173,8 @@ static void esp32_spi_txrx_buffer(Esp32SpiState *s, void *buf, int tx_bytes, int
 
 static void esp32_spi_cs_set(Esp32SpiState *s, int value)
 {
-    for (int i = 0; i < ESP32_SPI_CS_COUNT; ++i) {
+    for (int i = 0; i < ESP32_SPI_CS_COUNT; ++i)
+    {
         qemu_set_irq(s->cs_gpio[i], ((s->pin_reg & (1 << i)) == 0) ? value : 1);
     }
 }
@@ -191,18 +196,19 @@ static inline int bitlen_to_bytes(uint32_t val)
 
 static void maybe_encrypt_data(Esp32SpiState *s)
 {
-    Esp32FlashEncryptionState* flash_enc = esp32_flash_encryption_find();
-    if (esp32_flash_encryption_enabled(flash_enc)) {
+    Esp32FlashEncryptionState *flash_enc = esp32_flash_encryption_find();
+    if (esp32_flash_encryption_enabled(flash_enc))
+    {
         esp32_flash_encryption_get_result(flash_enc, &s->data_reg[0], 8);
     }
 }
 
-static void esp32_spi_do_command(Esp32SpiState* s, uint32_t cmd_reg)
+static void esp32_spi_do_command(Esp32SpiState *s, uint32_t cmd_reg)
 {
     Esp32SpiTransaction t = {
-        .cmd_bytes = 1
-    };
-    switch (cmd_reg) {
+        .cmd_bytes = 1};
+    switch (cmd_reg)
+    {
     case R_SPI_CMD_READ_MASK:
         t.cmd = CMD_READ;
         t.addr_bytes = bitlen_to_bytes(FIELD_EX32(s->user1_reg, SPI_USER1, ADDR_BITLEN));
@@ -275,21 +281,27 @@ static void esp32_spi_do_command(Esp32SpiState* s, uint32_t cmd_reg)
 
     case R_SPI_CMD_USR_MASK:
         maybe_encrypt_data(s);
-        if (FIELD_EX32(s->user_reg, SPI_USER, COMMAND) || FIELD_EX32(s->user2_reg, SPI_USER2, COMMAND_BITLEN)) {
+        if (FIELD_EX32(s->user_reg, SPI_USER, COMMAND) || FIELD_EX32(s->user2_reg, SPI_USER2, COMMAND_BITLEN))
+        {
             t.cmd = FIELD_EX32(s->user2_reg, SPI_USER2, COMMAND_VALUE);
             t.cmd_bytes = bitlen_to_bytes(FIELD_EX32(s->user2_reg, SPI_USER2, COMMAND_BITLEN));
-        } else {
+        }
+        else
+        {
             t.cmd_bytes = 0;
         }
-        if (FIELD_EX32(s->user_reg, SPI_USER, ADDR)) {
+        if (FIELD_EX32(s->user_reg, SPI_USER, ADDR))
+        {
             t.addr_bytes = bitlen_to_bytes(FIELD_EX32(s->user1_reg, SPI_USER1, ADDR_BITLEN));
             t.addr = bswap32(s->addr_reg);
         }
-        if (FIELD_EX32(s->user_reg, SPI_USER, MOSI)) {
+        if (FIELD_EX32(s->user_reg, SPI_USER, MOSI))
+        {
             t.data = &s->data_reg[0];
             t.data_tx_bytes = bitlen_to_bytes(s->mosi_dlen_reg);
         }
-        if (FIELD_EX32(s->user_reg, SPI_USER, MISO)) {
+        if (FIELD_EX32(s->user_reg, SPI_USER, MISO))
+        {
             t.data = &s->data_reg[0];
             t.data_rx_bytes = bitlen_to_bytes(s->miso_dlen_reg);
         }
@@ -300,9 +312,8 @@ static void esp32_spi_do_command(Esp32SpiState* s, uint32_t cmd_reg)
     esp32_spi_transaction(s, &t);
 }
 
-
 static const MemoryRegionOps esp32_spi_ops = {
-    .read =  esp32_spi_read,
+    .read = esp32_spi_read,
     .write = esp32_spi_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
@@ -354,8 +365,7 @@ static const TypeInfo esp32_spi_info = {
     .parent = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(Esp32SpiState),
     .instance_init = esp32_spi_init,
-    .class_init = esp32_spi_class_init
-};
+    .class_init = esp32_spi_class_init};
 
 static void esp32_spi_register_types(void)
 {

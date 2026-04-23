@@ -72,7 +72,7 @@ static int psram_cs(SSIPeripheral *ss, bool select)
 {
     SsiPsramState *s = SSI_PSRAM(ss);
 
-    if (!select) {
+    if (select) {
         s->byte_count = 0;
         s->command = -1;
     }
@@ -82,7 +82,7 @@ static int psram_cs(SSIPeripheral *ss, bool select)
 static void psram_realize(SSIPeripheral *ss, Error **errp)
 {
     SsiPsramState *s = SSI_PSRAM(ss);
-    s->dummy = 1;
+    s->dummy = 0;
 }
 
 static Property psram_properties[] = {
